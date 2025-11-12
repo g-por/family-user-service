@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="uk">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>User Service • Demo</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<body class="bg-light">
+<div class="container py-4">
+    <h1 class="mb-4">Auth + Profile (Bootstrap)</h1>
+
+    <div class="row g-3">
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Статус</h5>
+                    <p class="mb-1">Access: <code id="aStatus">немає</code></p>
+                    <p>Refresh: <code id="rStatus">немає</code></p>
+                    <button class="btn btn-outline-secondary w-100" id="btnLogout">Вийти</button>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mt-3">
+                <div class="card-body">
+                    <h5 class="card-title">Оновити access</h5>
+                    <button class="btn btn-primary w-100" id="btnRefresh">Оновити</button>
+                    <div class="small text-muted mt-2">Використовує <code>X-Refresh-Token</code>.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card shadow-sm mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Реєстрація</h5>
+                    <form id="formRegister" class="row g-2">
+                        <div class="col-md-4"><input class="form-control" name="fullName" placeholder="Ім'я" required></div>
+                        <div class="col-md-4"><input class="form-control" name="email" placeholder="Email" type="email" required></div>
+                        <div class="col-md-4"><input class="form-control" name="password" placeholder="Пароль" type="password" required></div>
+                        <div class="col-12"><button class="btn btn-success">Зареєструватися</button></div>
+                    </form>
+                    <div id="regMsg" class="mt-2 text-muted"></div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Логін</h5>
+                    <form id="formLogin" class="row g-2">
+                        <div class="col-md-6"><input class="form-control" name="email" type="email" placeholder="Email" required></div>
+                        <div class="col-md-6"><input class="form-control" name="password" type="password" placeholder="Пароль" required></div>
+                        <div class="col-12"><button class="btn btn-primary">Увійти</button></div>
+                    </form>
+                    <div id="loginMsg" class="mt-2 text-muted"></div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title d-flex justify-content-between">
+                        Мій профіль
+                        <button class="btn btn-sm btn-outline-primary" id="btnLoadMe">Завантажити /me</button>
+                    </h5>
+                    <pre id="meBox" class="bg-body-tertiary p-2 rounded" style="min-height:120px">{}</pre>
+
+                    <h6 class="mt-3">Оновити профіль</h6>
+                    <form id="formUpdateMe" class="row g-2">
+                        <div class="col-md-4"><input class="form-control" name="fullName" placeholder="Ім'я"></div>
+                        <div class="col-md-4"><input class="form-control" name="city" placeholder="Місто"></div>
+                        <div class="col-md-4"><input class="form-control" name="avatarUrl" placeholder="URL аватару"></div>
+                        <div class="col-12"><button class="btn btn-warning">Зберегти</button></div>
+                    </form>
+
+                    <h6 class="mt-3">Змінити пароль</h6>
+                    <form id="formPwd" class="row g-2">
+                        <div class="col-md-6"><input class="form-control" name="oldPassword" type="password" placeholder="Старий пароль" required></div>
+                        <div class="col-md-6"><input class="form-control" name="newPassword" type="password" placeholder="Новий пароль" required></div>
+                        <div class="col-12"><button class="btn btn-outline-danger">Змінити пароль</button></div>
+                    </form>
+                    <div id="meMsg" class="mt-2 text-muted"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API = ''; // пусто => той самий хост:порт (8081)
+    const $ = s => document.querySelector(s);
+    const setStatus = () => {
+      $('#aStatus').textContent = localStorage.getItem('access') ? 'є' : 'немає';
+      $('#rStatus').textContent = localStorage.getItem('refresh') ? 'є' : 'немає';
+    }; setStatus();
+
+    async function api(path, {method='GET', body, auth=true, headers={}} = {}) {
+      const h = {'Content-Type':'application/json', ...headers};
+      if (auth && localStorage.getItem('access')) h['Authorization'] = 'Bearer ' + localStorage.getItem('access');
+      const res = await fetch(API + path, {method, headers:h, body: body ? JSON.stringify(body) : undefined});
+      const text = await res.text();
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText} — ${text}`);
+      try { return JSON.parse(text); } catch { return text; }
+    }
+
+    // Register
+    $('#formRegister').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const f = new FormData(e.target);
+      try{
+        await api('/api/auth/register', {method:'POST', auth:false, body:{
+          fullName:f.get('fullName'), email:f.get('email'), password:f.get('password')
+        }});
+        $('#regMsg').textContent = 'Реєстрація успішна. Тепер увійдіть.';
+      }catch(err){ $('#regMsg').textContent = err.message; }
+    });
+
+    // Login
+    $('#formLogin').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const f = new FormData(e.target);
+      try{
+        const r = await api('/api/auth/login', {method:'POST', auth:false, body:{
+          email:f.get('email'), password:f.get('password')
+        }});
+        localStorage.setItem('access', r.tokens.accessToken);
+        localStorage.setItem('refresh', r.tokens.refreshToken);
+        setStatus(); $('#loginMsg').textContent = 'Успішний вхід.';
+      }catch(err){ $('#loginMsg').textContent = err.message; }
+    });
+
+    // Refresh
+    $('#btnRefresh').addEventListener('click', async ()=>{
+      try{
+        const rt = localStorage.getItem('refresh'); if (!rt) throw new Error('Немає refresh токена');
+        const r = await api('/api/auth/refresh', {method:'POST', auth:false, headers:{'X-Refresh-Token': rt}});
+        localStorage.setItem('access', r.tokens.accessToken); setStatus();
+        $('#loginMsg').textContent = 'Access токен оновлено.';
+      }catch(err){ $('#loginMsg').textContent = err.message; }
+    });
+
+    // /me
+    $('#btnLoadMe').addEventListener('click', async ()=>{
+      try{
+        const me = await api('/api/me');
+        $('#meBox').textContent = JSON.stringify(me, null, 2);
+        const f = $('#formUpdateMe');
+        f.fullName.value = me.fullName||''; f.city.value = me.city||''; f.avatarUrl.value = me.avatarUrl||'';
+      }catch(err){ $('#meBox').textContent = err.message; }
+    });
+
+    // update /me
+    $('#formUpdateMe').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const f = new FormData(e.target);
+      try{
+        const me = await api('/api/me', {method:'PUT', body:{
+          fullName:f.get('fullName'), city:f.get('city'), avatarUrl:f.get('avatarUrl')
+        }});
+        $('#meBox').textContent = JSON.stringify(me, null, 2);
+        $('#meMsg').textContent = 'Профіль оновлено.';
+      }catch(err){ $('#meMsg').textContent = err.message; }
+    });
+
+    // change pwd
+    $('#formPwd').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const f = new FormData(e.target);
+      try{
+        await api('/api/me/password', {method:'PATCH', body:{
+          oldPassword:f.get('oldPassword'), newPassword:f.get('newPassword')
+        }});
+        $('#meMsg').textContent = 'Пароль змінено.';
+      }catch(err){ $('#meMsg').textContent = err.message; }
+    });
+
+    // logout
+    $('#btnLogout').addEventListener('click', async ()=>{
+      try{
+        const rt = localStorage.getItem('refresh');
+        if (rt) await api('/api/auth/logout', {method:'POST', auth:false, headers:{'X-Refresh-Token': rt}});
+      }catch(_){} finally{
+        localStorage.removeItem('access'); localStorage.removeItem('refresh'); setStatus();
+      }
+    });
+</script>
+</body>
+</html>
