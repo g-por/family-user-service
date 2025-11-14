@@ -40,7 +40,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     List<String> roles = jwt.getRoles(token);
                     if (!roles.isEmpty()) {
                         var auths = roles.stream().map(SimpleGrantedAuthority::new).toList();
-                        var principal = users.findById(uid).orElse(null); // optional for user details; null principal also works
+                        var principal = users.findById(uid).orElse(null);
                         var auth = new UsernamePasswordAuthenticationToken(principal, null, auths);
                         SecurityContextHolder.getContext().setAuthentication(auth);
                     } else {
@@ -52,7 +52,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     }
                 }
             } catch (Exception e) {
-                // Log the error properly or handle it
                 logger.debug("JWT validation error: {}", e.getMessage());
             }
         }

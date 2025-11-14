@@ -40,7 +40,6 @@ public class JwtService {
                 .requireIssuer(issuer)
                 .setSigningKey(key())
                 .build();
-        // Will throw if signature invalid or token expired or issuer mismatch
         return parser.parseClaimsJws(token).getBody();
     }
 
