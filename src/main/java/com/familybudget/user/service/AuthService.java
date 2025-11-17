@@ -5,7 +5,6 @@ import com.familybudget.user.domain.RefreshToken;
 import com.familybudget.user.domain.User;
 import com.familybudget.user.dto.*;
 import com.familybudget.user.repo.RefreshTokenRepo;
-import com.familybudget.user.repo.RoleRepo;
 import com.familybudget.user.repo.UserRepo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,7 +18,7 @@ import java.time.*; import java.util.UUID;
 
 @Service @RequiredArgsConstructor
 public class AuthService {
-    private final UserRepo users; private final RoleRepo roles;
+    private final UserRepo users;
     private final RefreshTokenRepo rts; private final PasswordEncoder pe; private final JwtService jwt;
 
     @Value("${jwt.refresh-token-ttl-days}") private long refreshTtlDays;
@@ -31,8 +30,13 @@ public class AuthService {
         var u = new User();
         u.setEmail(r.email().trim().toLowerCase());
         u.setPasswordHash(pe.encode(r.password()));
-        u.setFullName(r.fullName());
-        u.getRoles().add(roles.findByName("ROLE_USER").orElseThrow());
+        u.setNickname(r.nickname());
+        u.setPhone(r.phone());
+        var avatar = (r.avatarUrl()==null || r.avatarUrl().isBlank())
+                ? "https://api.dicebear.com/7.x/identicon/svg?seed=family-budget"
+                : r.avatarUrl();
+        u.setAvatarUrl(avatar);
+        u.setCity(r.city());
         users.save(u);
     }
 
@@ -40,6 +44,7 @@ public class AuthService {
     public TokenPair login(LoginRequest r){
         var u = users.findByEmailIgnoreCase(r.email())
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        if (!u.isEnabled()) throw new BadCredentialsException("User is disabled");
         if (!pe.matches(r.password(), u.getPasswordHash()))
             throw new BadCredentialsException("Bad credentials");
 

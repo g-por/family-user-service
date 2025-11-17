@@ -1,2 +1,4 @@
 package com.familybudget.user.dto;
-public record UpdateMeRequest(String fullName, String avatarUrl, String city) {}
+import jakarta.validation.constraints.NotBlank;
+
+public record UpdateMeRequest(@NotBlank String nickname, String avatarUrl, String city) {}

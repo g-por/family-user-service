@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 @RestController @RequestMapping("/api") @RequiredArgsConstructor
 public class MeController {
@@ -16,7 +17,7 @@ public class MeController {
     public MeResponse get(@AuthenticationPrincipal User u){ return me.me(u); }
 
     @PutMapping("/me")
-    public MeResponse update(@AuthenticationPrincipal User u, @RequestBody UpdateMeRequest r){
+    public MeResponse update(@AuthenticationPrincipal User u, @Valid @RequestBody UpdateMeRequest r){
         return me.update(u, r);
     }
 

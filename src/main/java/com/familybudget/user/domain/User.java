@@ -13,18 +13,19 @@ public class User {
     @Column(nullable=false, unique=true) private String email;
     @Column(name="password_hash", nullable=false) private String passwordHash;
 
-    private String fullName;
+    @Column(name="nickname", nullable = false)
+    private String nickname;
+
+    @Column(name="avatar_url")
     private String avatarUrl;
+
     private String city;
+
+    @Column(name = "phone", nullable = false)
+    private String phone;
 
     private boolean enabled = true;
     @Column(nullable=false) private Instant createdAt = Instant.now();
     @Column(nullable=false) private Instant updatedAt = Instant.now();
     @PreUpdate public void touch(){ updatedAt = Instant.now(); }
-
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(name="user_roles",
-            joinColumns=@JoinColumn(name="user_id"),
-            inverseJoinColumns=@JoinColumn(name="role_id"))
-    private Set<Role> roles = new HashSet<>();
 }

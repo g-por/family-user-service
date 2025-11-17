@@ -11,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -37,19 +36,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 // Do not overwrite existing authentication
                 if (SecurityContextHolder.getContext().getAuthentication() == null) {
                     UUID uid = UUID.fromString(jwt.getSubject(token));
-                    List<String> roles = jwt.getRoles(token);
-                    if (!roles.isEmpty()) {
-                        var auths = roles.stream().map(SimpleGrantedAuthority::new).toList();
-                        var principal = users.findById(uid).orElse(null);
-                        var auth = new UsernamePasswordAuthenticationToken(principal, null, auths);
+                    users.findById(uid).ifPresent(u -> {
+                        var auth = new UsernamePasswordAuthenticationToken(u, null, List.of());
                         SecurityContextHolder.getContext().setAuthentication(auth);
-                    } else {
-                        users.findById(uid).ifPresent(u -> {
-                            var auths = u.getRoles().stream().map(r -> new SimpleGrantedAuthority(r.getName())).toList();
-                            var auth = new UsernamePasswordAuthenticationToken(u, null, auths);
-                            SecurityContextHolder.getContext().setAuthentication(auth);
-                        });
-                    }
+                    });
                 }
             } catch (Exception e) {
                 logger.debug("JWT validation error: {}", e.getMessage());

@@ -14,12 +14,12 @@ public class MeService {
     private final UserRepo users; private final PasswordEncoder pe;
 
     public MeResponse me(User u){
-        return new MeResponse(u.getId(), u.getEmail(), u.getFullName(), u.getAvatarUrl(), u.getCity());
+        return new MeResponse(u.getId(), u.getEmail(), u.getNickname(), u.getAvatarUrl(), u.getCity());
     }
 
     @Transactional
     public MeResponse update(User u, UpdateMeRequest r){
-        u.setFullName(r.fullName()); u.setAvatarUrl(r.avatarUrl()); u.setCity(r.city());
+        u.setNickname(r.nickname()); u.setAvatarUrl(r.avatarUrl()); u.setCity(r.city());
         users.save(u); return me(u);
     }
 
