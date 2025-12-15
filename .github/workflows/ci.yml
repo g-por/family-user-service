@@ -34,20 +34,28 @@ jobs:
       - name: Build & Test (Maven)
         run: mvn -B -U -DskipTests=false clean verify
 
-      # Логін у GHCR:
-      # - на push: завжди можна
-      # - на PR: тільки якщо PR з цього ж репо (не fork)
+      - name: Decide push permission
+        id: pushcheck
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "push_allowed=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "pull_request" && "${{ github.event.pull_request.head.repo.full_name }}" == "${{ github.repository }}" ]]; then
+            echo "push_allowed=true" >> $GITHUB_OUTPUT
+          else
+            echo "push_allowed=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Login to GHCR
-        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+        if: steps.pushcheck.outputs.push_allowed == 'true'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.repository_owner }}
+          username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata (tags, labels)
         id: meta
-        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+        if: steps.pushcheck.outputs.push_allowed == 'true'
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
@@ -57,11 +65,11 @@ jobs:
             type=ref,event=tag
             type=raw,value=pr-${{ github.event.pull_request.number }},enable=${{ github.event_name == 'pull_request' }}
 
-      - name: Build and push Docker image
-        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+
+      - name: Build (and optionally push) Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: true
+          push: ${{ steps.pushcheck.outputs.push_allowed == 'true' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
