@@ -13,31 +13,43 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import com.familybudget.user.dto.event.UserCreatedEvent;
+import com.familybudget.user.messaging.publisher.UserEventPublisher;
 import java.time.*; import java.util.UUID;
 
 @Service @RequiredArgsConstructor
 public class AuthService {
     private final UserRepo users;
     private final RefreshTokenRepo rts; private final PasswordEncoder pe; private final JwtService jwt;
+    private final UserEventPublisher userEventPublisher;
 
     @Value("${jwt.refresh-token-ttl-days}") private long refreshTtlDays;
 
     @Transactional
-    public void register(RegisterRequest r){
+    public void register(RegisterRequest r) {
         if (users.existsByEmailIgnoreCase(r.email()))
             throw new IllegalArgumentException("Email already used");
+
         var u = new User();
         u.setEmail(r.email().trim().toLowerCase());
         u.setPasswordHash(pe.encode(r.password()));
         u.setNickname(r.nickname());
         u.setPhone(r.phone());
-        var avatar = (r.avatarUrl()==null || r.avatarUrl().isBlank())
+        var avatar = (r.avatarUrl() == null || r.avatarUrl().isBlank())
                 ? "https://api.dicebear.com/7.x/identicon/svg?seed=family-budget"
                 : r.avatarUrl();
         u.setAvatarUrl(avatar);
         u.setCity(r.city());
         users.save(u);
+
+        userEventPublisher.publishUserCreatedEvent(
+                new UserCreatedEvent(
+                        u.getId(),
+                        u.getEmail(),
+                        u.getNickname(),
+                        u.getPhone()
+                )
+        );
     }
 
     @Transactional

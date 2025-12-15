@@ -33,7 +33,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (h != null && h.startsWith("Bearer ")) {
             String token = h.substring(7);
             try {
-                // Do not overwrite existing authentication
+
                 if (SecurityContextHolder.getContext().getAuthentication() == null) {
                     UUID uid = UUID.fromString(jwt.getSubject(token));
                     users.findById(uid).ifPresent(u -> {

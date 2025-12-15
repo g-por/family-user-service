@@ -55,7 +55,6 @@ public class SecurityConfig {
 
     @Bean PasswordEncoder passwordEncoder(){ return new BCryptPasswordEncoder(); }
 
-    // CORS, щоб фронт працював і локально
     @Bean CorsConfigurationSource cors(){
         var c = new CorsConfiguration();
         c.setAllowedOriginPatterns(List.of(
