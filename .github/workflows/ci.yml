@@ -13,7 +13,7 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}   # ghcr.io/<owner>/<repo>
+  IMAGE_NAME: ${{ github.repository }}
   DOCKER_BUILDKIT: 1
 
 jobs:
@@ -34,27 +34,38 @@ jobs:
       - name: Build & Test (Maven)
         run: mvn -B -U -DskipTests=false clean verify
 
+      - name: Decide push permission
+        id: pushcheck
+        run: |
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "push_allowed=true" >> $GITHUB_OUTPUT
+          else
+            echo "push_allowed=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Login to GHCR
+        if: steps.pushcheck.outputs.push_allowed == 'true'
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GHCR_TOKEN }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata (tags, labels)
         id: meta
+        if: steps.pushcheck.outputs.push_allowed == 'true'
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=latest
             type=sha,prefix=sha-,format=short
             type=ref,event=tag
 
-      - name: Build and push Docker image
+      - name: Build (and push only on main)
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: true
+          push: ${{ steps.pushcheck.outputs.push_allowed == 'true' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
